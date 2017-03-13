@@ -48,7 +48,7 @@ class SystemInfoServer(HTTPServer):
 
 
 def get_platform():
-    return {"processor": platform.processor(), "system": platform.system()}
+    return {"platform": platform.machine(), "system": platform.system()}
 
 
 def get_uptime():
