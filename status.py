@@ -83,7 +83,7 @@ def get_memory():
         percent_used = 100*used/total
         
     return {"total": sizeof_fmt(total), "avail": sizeof_fmt(avail),
-            "percent_used": percent_used}
+            "percent_used": round(percent_used, 1)}
         
     
 print(get_platform())
