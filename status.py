@@ -21,6 +21,7 @@ from datetime import timedelta
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 
+# ==== HTTP server components
 class SystemInfoRequestHandler(BaseHTTPRequestHandler):
     
     def do_GET(self):
@@ -47,6 +48,7 @@ class SystemInfoServer(HTTPServer):
         super(SystemInfoServer, self).__init__(*args, **kwargs)
 
 
+# ==== status information sources
 def get_platform():
     return {"platform": platform.machine(), "system": platform.system()}
 
@@ -86,17 +88,14 @@ def get_memory():
             "percent_used": round(percent_used, 1)}
         
     
-print(get_platform())
-print(get_uptime())
-print(get_memory())
-
-
+# ==== prepare command line parser
 parser = argparse.ArgumentParser(description="System Info Server")
 parser.add_argument("--port", type=int, default=8049)
 parser.add_argument("--platform", action="store_true")
 parser.add_argument("--uptime", action="store_true")
 parser.add_argument("--memory", action="store_true")
-config = vars(parser.parse_args())
 
+# ==== run server
+config = vars(parser.parse_args())
 httpd = SystemInfoServer(config, ("", config["port"]), SystemInfoRequestHandler)
 httpd.serve_forever()
