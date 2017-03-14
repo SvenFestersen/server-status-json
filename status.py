@@ -8,7 +8,7 @@ Information included:
  * platform: processor, system
  * uptime: uptime, upsince
  * memory: total/avail/percentage used
- * load average
+ * load: average 1min/5min/15min
 
 """
 import argparse
@@ -51,6 +51,8 @@ class SystemInfoRequestHandler(BaseHTTPRequestHandler):
             result["uptime"] = get_uptime()
         if config["memory"]:
             result["memory"] = get_memory()
+        if config["load"]:
+            result["load"] = get_load()
         
         self.wfile.write(bytes(json.dumps(result), "utf8"))
         
@@ -100,7 +102,15 @@ def get_memory():
         
     return {"total": sizeof_fmt(total), "avail": sizeof_fmt(avail),
             "percent_used": round(percent_used, 1)}
-        
+            
+            
+def get_load():
+    if not sys.platform.startswith("linux"):
+        return {"load1": 0, "load5": 0, "load15": 0}
+    with open("/proc/loadavg", "r") as f:
+        d = f.read().split()
+        load = list(map(float, d[:3]))
+        return {"load1": load[0], "load5": load[1], "load15": load[2]}
     
 # ==== prepare command line parser
 parser = argparse.ArgumentParser(description="System Info Server")
@@ -109,6 +119,7 @@ parser.add_argument("--key", type=str, default="none")
 parser.add_argument("--platform", action="store_true")
 parser.add_argument("--uptime", action="store_true")
 parser.add_argument("--memory", action="store_true")
+parser.add_argument("--load", action="store_true")
 
 # ==== run server
 config = vars(parser.parse_args())
