@@ -19,17 +19,32 @@ import sys
 import time
 from datetime import timedelta
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from urllib.parse import urlparse, parse_qs
 
 
 # ==== HTTP server components
 class SystemInfoRequestHandler(BaseHTTPRequestHandler):
     
     def do_GET(self):
+        config = self.server.config
+        # check if client is authorized
+        if config["key"] != "none":
+            params = parse_qs(urlparse(self.path).query)
+            provided_key = None
+            if "key" in params and params["key"]:
+                provided_key = params["key"][0]
+            if provided_key != config["key"]:
+                self.send_response(401)
+                self.send_header("Content-type", "text/plain")
+                self.end_headers()
+                self.wfile.write(bytes("Unauthorized.", "utf8"))
+                return
+        
+        # respond after successful authorization
         self.send_response(200)
         self.send_header("Content-type", "application/json")
         self.end_headers()
         # make response
-        config = self.server.config
         result = {}
         if config["platform"]:
             result["platform"] = get_platform()
@@ -91,11 +106,13 @@ def get_memory():
 # ==== prepare command line parser
 parser = argparse.ArgumentParser(description="System Info Server")
 parser.add_argument("--port", type=int, default=8049)
+parser.add_argument("--key", type=str, default="none")
 parser.add_argument("--platform", action="store_true")
 parser.add_argument("--uptime", action="store_true")
 parser.add_argument("--memory", action="store_true")
 
 # ==== run server
 config = vars(parser.parse_args())
-httpd = SystemInfoServer(config, ("", config["port"]), SystemInfoRequestHandler)
+httpd = SystemInfoServer(config, ("", config["port"]),
+                         SystemInfoRequestHandler)
 httpd.serve_forever()
