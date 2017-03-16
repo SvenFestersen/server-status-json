@@ -13,8 +13,10 @@ Information included:
 """
 import argparse
 import json
+import os
 import platform
 import re
+import subprocess
 import sys
 import time
 from datetime import timedelta
@@ -53,6 +55,8 @@ class SystemInfoRequestHandler(BaseHTTPRequestHandler):
             result["memory"] = get_memory()
         if config["load"]:
             result["load"] = get_load()
+        if config["storage"]:
+            result["storage"] = get_storage(config["storage"])
         
         self.wfile.write(bytes(json.dumps(result), "utf8"))
         
@@ -111,6 +115,33 @@ def get_load():
         d = f.read().split()
         load = list(map(float, d[:3]))
         return {"load1": load[0], "load5": load[1], "load15": load[2]}
+        
+        
+def get_df(mnt):
+    d = subprocess.check_output(["df", "-B 1", mnt]).decode("ascii").split("\n")[1]
+    vals = d.split()
+    total = int(vals[1])
+    used = int(vals[2])
+    avail = int(vals[3])
+    percent_used = int(vals[4][:-1])
+    return {"total_bytes": total, "total": sizeof_fmt(total),
+            "used_bytes": used, "used": sizeof_fmt(used),
+            "avail_bytes": avail, "avail": sizeof_fmt(avail),
+            "percent_used": percent_used}
+        
+        
+def get_storage(mounts):
+    result = {}
+    for mnt in mounts:
+        if os.path.exists(mnt) and os.path.isdir(mnt):
+            info = get_df(mnt)
+            if mnt == "/":
+                name = "root"
+            else:
+                name = mnt.strip("/").replace("/", "-")
+            result[name] = info
+    return result
+        
     
 # ==== prepare command line parser
 parser = argparse.ArgumentParser(description="System Info Server")
@@ -120,6 +151,7 @@ parser.add_argument("--platform", action="store_true")
 parser.add_argument("--uptime", action="store_true")
 parser.add_argument("--memory", action="store_true")
 parser.add_argument("--load", action="store_true")
+parser.add_argument("--storage", type=str, nargs="*", default=[])
 
 # ==== run server
 config = vars(parser.parse_args())
